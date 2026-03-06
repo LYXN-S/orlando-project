@@ -1,12 +1,16 @@
 package com.orlandoprestige.orlandoproject.orders.internal.presentation.controller;
 
 import com.orlandoprestige.orlandoproject.auth.AuthenticatedUser;
+import com.orlandoprestige.orlandoproject.catalog.CatalogFacade;
+import com.orlandoprestige.orlandoproject.catalog.dto.ProductInfoDto;
 import com.orlandoprestige.orlandoproject.orders.internal.domain.Order;
 import com.orlandoprestige.orlandoproject.orders.internal.domain.OrderItem;
 import com.orlandoprestige.orlandoproject.orders.internal.presentation.dto.EvaluateOrderDto;
 import com.orlandoprestige.orlandoproject.orders.internal.presentation.dto.OrderDto;
 import com.orlandoprestige.orlandoproject.orders.internal.presentation.dto.OrderItemDto;
+import com.orlandoprestige.orlandoproject.orders.internal.presentation.dto.SubmitOrderDto;
 import com.orlandoprestige.orlandoproject.orders.internal.service.OrderService;
+import jakarta.validation.Valid;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -26,12 +30,15 @@ import java.util.List;
 public class OrderController {
 
     private final OrderService orderService;
+    private final CatalogFacade catalogFacade;
 
     @PostMapping
     @PreAuthorize("hasRole('ROLE_CUSTOMER')")
-    @Operation(summary = "Submit an order from the current cart")
-    public ResponseEntity<OrderDto> submitOrder(@AuthenticationPrincipal AuthenticatedUser user) {
-        Order order = orderService.submitOrder(user.userId());
+    @Operation(summary = "Submit an order with items and billing details")
+    public ResponseEntity<OrderDto> submitOrder(
+            @AuthenticationPrincipal AuthenticatedUser user,
+            @Valid @RequestBody SubmitOrderDto dto) {
+        Order order = orderService.submitOrder(user.userId(), dto);
         return ResponseEntity.status(HttpStatus.CREATED).body(toDto(order));
     }
 
@@ -46,9 +53,9 @@ public class OrderController {
 
     @GetMapping
     @PreAuthorize("hasRole('SUPER_ADMIN') or @permissionChecker.has(authentication, 'MANAGE_ORDERS')")
-    @Operation(summary = "Get all pending orders (Staff with permission)")
-    public ResponseEntity<List<OrderDto>> getPendingOrders() {
-        List<OrderDto> orders = orderService.getAllPendingOrders()
+    @Operation(summary = "Get all orders (Staff with permission)")
+    public ResponseEntity<List<OrderDto>> getAllOrders() {
+        List<OrderDto> orders = orderService.getAllOrders()
                 .stream().map(this::toDto).toList();
         return ResponseEntity.ok(orders);
     }
@@ -91,18 +98,27 @@ public class OrderController {
                 total,
                 order.getCreatedAt(),
                 order.getEvaluatedByStaffId(),
-                order.getEvaluationNote()
+                order.getEvaluationNote(),
+                order.getBillingType() != null ? order.getBillingType().name() : null,
+                order.getBillingName(),
+                order.getBillingTin(),
+                order.getBillingAddress(),
+                order.getBillingTerms()
         );
     }
 
     private OrderItemDto toItemDto(OrderItem item) {
         BigDecimal subtotal = item.getUnitPrice().multiply(BigDecimal.valueOf(item.getQuantity()));
+        Integer availableStock = catalogFacade.findById(item.getProductId())
+                .map(ProductInfoDto::stockQuantity)
+                .orElse(null);
         return new OrderItemDto(
                 item.getProductId(),
                 item.getProductName(),
                 item.getQuantity(),
                 item.getUnitPrice(),
-                subtotal
+                subtotal,
+                availableStock
         );
     }
 }

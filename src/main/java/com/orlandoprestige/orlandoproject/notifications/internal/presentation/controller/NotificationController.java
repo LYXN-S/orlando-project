@@ -50,7 +50,7 @@ public class NotificationController {
     @Operation(summary = "Mark all notifications as read for current user")
     public ResponseEntity<Void> markAllAsRead(
             @AuthenticationPrincipal AuthenticatedUser user) {
-        notificationService.markAllAsRead(user.userId());
+        notificationService.markAllAsRead(user.userId(), user.role());
         return ResponseEntity.noContent().build();
     }
 

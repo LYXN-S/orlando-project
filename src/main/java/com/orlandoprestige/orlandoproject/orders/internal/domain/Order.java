@@ -1,5 +1,6 @@
 package com.orlandoprestige.orlandoproject.orders.internal.domain;
 
+import com.orlandoprestige.orlandoproject.customers.internal.domain.BillingType;
 import com.orlandoprestige.orlandoproject.shared.domain.entities.SoftDeletableEntity;
 import jakarta.persistence.*;
 import lombok.*;
@@ -38,6 +39,23 @@ public class Order extends SoftDeletableEntity {
 
     @Column(name = "evaluation_note")
     private String evaluationNote;
+
+    // Billing details snapshot
+    @Enumerated(EnumType.STRING)
+    @Column(name = "billing_type")
+    private BillingType billingType;
+
+    @Column(name = "billing_name")
+    private String billingName;
+
+    @Column(name = "billing_tin")
+    private String billingTin;
+
+    @Column(name = "billing_address")
+    private String billingAddress;
+
+    @Column(name = "billing_terms")
+    private String billingTerms;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)

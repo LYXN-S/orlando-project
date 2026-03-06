@@ -64,9 +64,13 @@ public class NotificationService {
 
     @Transactional(readOnly = true)
     public List<Notification> getNotificationsForUser(Long userId, String role, List<String> permissions) {
-        // Get personal notifications + role-broadcast notifications (userId = 0)
+        // Determine the targetRole to filter personal notifications
+        String targetRole = ("ROLE_STAFF".equals(role) || "ROLE_SUPER_ADMIN".equals(role))
+                ? "ROLE_STAFF" : role;
+
+        // Get personal notifications scoped to BOTH userId AND targetRole
         List<Notification> personal = new java.util.ArrayList<>(
-                notificationRepository.findByUserIdOrderByCreatedAtDesc(userId));
+                notificationRepository.findByUserIdAndTargetRoleOrderByCreatedAtDesc(userId, targetRole));
         if ("ROLE_STAFF".equals(role) || "ROLE_SUPER_ADMIN".equals(role)) {
             boolean isSuperAdmin = "ROLE_SUPER_ADMIN".equals(role);
             List<Notification> broadcasts = notificationRepository.findByTargetRoleOrderByCreatedAtDesc("ROLE_STAFF");
@@ -97,7 +101,11 @@ public class NotificationService {
 
     @Transactional(readOnly = true)
     public long getUnreadCount(Long userId, String role, List<String> permissions) {
-        long personal = notificationRepository.countByUserIdAndReadFalse(userId);
+        // Determine the targetRole to scope personal unread count
+        String targetRole = ("ROLE_STAFF".equals(role) || "ROLE_SUPER_ADMIN".equals(role))
+                ? "ROLE_STAFF" : role;
+
+        long personal = notificationRepository.countByUserIdAndTargetRoleAndReadFalse(userId, targetRole);
         if ("ROLE_STAFF".equals(role) || "ROLE_SUPER_ADMIN".equals(role)) {
             boolean isSuperAdmin = "ROLE_SUPER_ADMIN".equals(role);
             if (isSuperAdmin) {
@@ -128,9 +136,24 @@ public class NotificationService {
     }
 
     @Transactional
-    public void markAllAsRead(Long userId) {
-        List<Notification> unread = notificationRepository.findByUserIdAndReadFalseOrderByCreatedAtDesc(userId);
+    public void markAllAsRead(Long userId, String role) {
+        // Determine the targetRole to scope which notifications to mark
+        String targetRole = ("ROLE_STAFF".equals(role) || "ROLE_SUPER_ADMIN".equals(role))
+                ? "ROLE_STAFF" : role;
+
+        // Mark personal notifications as read
+        List<Notification> unread = notificationRepository.findByUserIdAndTargetRoleAndReadFalseOrderByCreatedAtDesc(userId, targetRole);
         unread.forEach(n -> n.setRead(true));
+
+        // For staff, also mark broadcast notifications as read
+        if ("ROLE_STAFF".equals(role) || "ROLE_SUPER_ADMIN".equals(role)) {
+            List<Notification> broadcastUnread = notificationRepository.findByTargetRoleAndReadFalseOrderByCreatedAtDesc("ROLE_STAFF");
+            broadcastUnread.stream()
+                    .filter(n -> n.getUserId() == 0L)
+                    .forEach(n -> n.setRead(true));
+            unread.addAll(broadcastUnread);
+        }
+
         notificationRepository.saveAll(unread);
     }
 }

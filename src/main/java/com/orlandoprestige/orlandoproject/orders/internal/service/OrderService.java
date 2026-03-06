@@ -1,13 +1,18 @@
 package com.orlandoprestige.orlandoproject.orders.internal.service;
 
 import com.orlandoprestige.orlandoproject.cart.CartFacade;
-import com.orlandoprestige.orlandoproject.cart.dto.CartSummaryDto;
 import com.orlandoprestige.orlandoproject.catalog.CatalogFacade;
+import com.orlandoprestige.orlandoproject.catalog.dto.ProductInfoDto;
+import com.orlandoprestige.orlandoproject.customers.internal.domain.BillingProfile;
+import com.orlandoprestige.orlandoproject.customers.internal.domain.BillingType;
+import com.orlandoprestige.orlandoproject.customers.internal.service.BillingProfileService;
 import com.orlandoprestige.orlandoproject.orders.internal.domain.Order;
 import com.orlandoprestige.orlandoproject.orders.internal.domain.OrderItem;
 import com.orlandoprestige.orlandoproject.orders.internal.domain.OrderStatus;
 import com.orlandoprestige.orlandoproject.orders.internal.event.OrderEvaluatedEvent;
 import com.orlandoprestige.orlandoproject.orders.internal.event.OrderSubmittedEvent;
+import com.orlandoprestige.orlandoproject.orders.internal.presentation.dto.SubmitOrderDto;
+import com.orlandoprestige.orlandoproject.orders.internal.presentation.dto.SubmitOrderItemDto;
 import com.orlandoprestige.orlandoproject.orders.internal.repository.OrderRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -25,31 +30,41 @@ public class OrderService {
     private final OrderRepository orderRepository;
     private final CartFacade cartFacade;
     private final CatalogFacade catalogFacade;
+    private final BillingProfileService billingProfileService;
     private final ApplicationEventPublisher eventPublisher;
 
     @Transactional
-    public Order submitOrder(Long customerId) {
-        CartSummaryDto cart = cartFacade.getCartByCustomerId(customerId)
-                .orElseThrow(() -> new IllegalStateException("Cart is empty. Cannot submit an order."));
-
-        if (cart.items().isEmpty()) {
-            throw new IllegalStateException("Cart is empty. Cannot submit an order.");
+    public Order submitOrder(Long customerId, SubmitOrderDto dto) {
+        if (dto.items() == null || dto.items().isEmpty()) {
+            throw new IllegalStateException("Order must have at least one item.");
         }
 
         Order order = new Order();
         order.setCustomerId(customerId);
         order.setStatus(OrderStatus.PENDING_EVALUATION);
 
-        List<OrderItem> orderItems = cart.items().stream().map(cartItem -> {
-            String productName = catalogFacade.findById(cartItem.productId())
-                    .map(p -> p.name())
-                    .orElse("Unknown Product");
+        // Set billing details
+        BillingType billingType = BillingType.valueOf(dto.billingType());
+        order.setBillingType(billingType);
+        order.setBillingName(dto.billingName());
+        order.setBillingTin(dto.billingTin());
+        order.setBillingAddress(dto.billingAddress());
+        order.setBillingTerms(dto.billingTerms());
+
+        // Build order items from submitted items
+        List<OrderItem> orderItems = dto.items().stream().map(submittedItem -> {
+            ProductInfoDto product = catalogFacade.findById(submittedItem.productId())
+                    .orElseThrow(() -> new EntityNotFoundException("Product not found: " + submittedItem.productId()));
+
+            if (product.stockQuantity() < submittedItem.quantity()) {
+                throw new IllegalStateException("Insufficient stock for product: " + product.name());
+            }
 
             OrderItem item = new OrderItem();
-            item.setProductId(cartItem.productId());
-            item.setProductName(productName);
-            item.setQuantity(cartItem.quantity());
-            item.setUnitPrice(cartItem.unitPrice());
+            item.setProductId(submittedItem.productId());
+            item.setProductName(product.name());
+            item.setQuantity(submittedItem.quantity());
+            item.setUnitPrice(product.price());
             item.setOrder(order);
             return item;
         }).toList();
@@ -57,8 +72,24 @@ public class OrderService {
         order.getItems().addAll(orderItems);
         Order saved = orderRepository.save(order);
 
-        // Clear cart after order is placed
-        cartFacade.clearCart(customerId);
+        // Clear server-side cart if it exists
+        try {
+            cartFacade.clearCart(customerId);
+        } catch (Exception ignored) {
+            // Cart may not exist server-side — that's fine
+        }
+
+        // Auto-save billing profile if customer has none
+        if (!billingProfileService.existsByCustomerId(customerId)) {
+            BillingProfile profile = new BillingProfile();
+            profile.setCustomerId(customerId);
+            profile.setBillingType(billingType);
+            profile.setName(dto.billingName());
+            profile.setTin(dto.billingTin());
+            profile.setAddress(dto.billingAddress());
+            profile.setPaymentTerms(dto.billingTerms());
+            billingProfileService.create(profile);
+        }
 
         // Publish event for potential listeners (notifications, audit, etc.)
         List<OrderSubmittedEvent.OrderItemSnapshot> snapshots = saved.getItems().stream()
@@ -101,6 +132,11 @@ public class OrderService {
     @Transactional(readOnly = true)
     public List<Order> getOrdersByCustomer(Long customerId) {
         return orderRepository.findAllByCustomerId(customerId);
+    }
+
+    @Transactional(readOnly = true)
+    public List<Order> getAllOrders() {
+        return orderRepository.findAllByOrderByCreatedAtDesc();
     }
 
     @Transactional(readOnly = true)

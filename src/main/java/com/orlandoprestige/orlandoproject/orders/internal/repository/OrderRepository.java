@@ -9,5 +9,6 @@ import java.util.List;
 public interface OrderRepository extends JpaRepository<Order, Long> {
     List<Order> findAllByCustomerId(Long customerId);
     List<Order> findAllByStatus(OrderStatus status);
+    List<Order> findAllByOrderByCreatedAtDesc();
 }
 

@@ -14,7 +14,12 @@ public record OrderDto(
         BigDecimal totalAmount,
         LocalDateTime createdAt,
         Long evaluatedByStaffId,
-        String evaluationNote
+        String evaluationNote,
+        String billingType,
+        String billingName,
+        String billingTin,
+        String billingAddress,
+        String billingTerms
 ) {
 }
 
