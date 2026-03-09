@@ -119,6 +119,13 @@
             <scope>runtime</scope>
         </dependency>
 
+        <!-- Dotenv for loading .env files -->
+        <dependency>
+            <groupId>io.github.cdimascio</groupId>
+            <artifactId>dotenv-java</artifactId>
+            <version>3.0.0</version>
+        </dependency>
+
     </dependencies>
 	<dependencyManagement>
 		<dependencies>
