@@ -67,7 +67,10 @@ public class SecurityConfig {
         CorsConfiguration config = new CorsConfiguration();
         
         // Parse comma-separated origins from environment variable
-        List<String> origins = Arrays.asList(allowedOrigins.split(","));
+        List<String> origins = Arrays.stream(allowedOrigins.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .toList();
         config.setAllowedOrigins(origins);
         
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
