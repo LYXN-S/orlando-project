@@ -114,17 +114,17 @@ public class OrderService {
         order.setEvaluatedByStaffId(staffId);
         order.setEvaluationNote(note);
 
-        // Decrement stock only on approval
-        if (approved) {
-            order.getItems().forEach(item ->
-                    catalogFacade.decrementStock(item.getProductId(), item.getQuantity()));
-        }
-
         Order saved = orderRepository.save(order);
 
-        // Publish evaluation event for notification listeners
+        // Build item snapshots for the event so inventory module can deduct stock
+        List<OrderEvaluatedEvent.OrderItemSnapshot> itemSnapshots = saved.getItems().stream()
+                .map(item -> new OrderEvaluatedEvent.OrderItemSnapshot(
+                        item.getProductId(), item.getProductName(), item.getQuantity()))
+                .toList();
+
+        // Publish evaluation event — inventory module handles stock deduction via @ApplicationModuleListener
         eventPublisher.publishEvent(new OrderEvaluatedEvent(
-                saved.getId(), saved.getCustomerId(), staffId, approved, note));
+                saved.getId(), saved.getCustomerId(), staffId, approved, note, itemSnapshots));
 
         return saved;
     }
