@@ -5,7 +5,7 @@ import com.orlandoprestige.orlandoproject.orders.internal.event.OrderEvaluatedEv
 import com.orlandoprestige.orlandoproject.orders.internal.event.OrderSubmittedEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.event.EventListener;
+import org.springframework.modulith.events.ApplicationModuleListener;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -17,9 +17,10 @@ public class NotificationEventListener {
 
     /**
      * When a new order is submitted, notify all staff members.
+     * Uses @ApplicationModuleListener for guaranteed delivery.
      */
-    @EventListener
-    public void onOrderSubmitted(OrderSubmittedEvent event) {
+    @ApplicationModuleListener
+    void onOrderSubmitted(OrderSubmittedEvent event) {
         log.info("Received OrderSubmittedEvent for order #{}", event.orderId());
 
         int itemCount = event.items().size();
@@ -37,9 +38,10 @@ public class NotificationEventListener {
 
     /**
      * When an order is evaluated (approved/rejected), notify the customer.
+     * Uses @ApplicationModuleListener for guaranteed delivery.
      */
-    @EventListener
-    public void onOrderEvaluated(OrderEvaluatedEvent event) {
+    @ApplicationModuleListener
+    void onOrderEvaluated(OrderEvaluatedEvent event) {
         log.info("Received OrderEvaluatedEvent for order #{} - approved: {}", event.orderId(), event.approved());
 
         NotificationType type = event.approved() ? NotificationType.ORDER_APPROVED : NotificationType.ORDER_REJECTED;
