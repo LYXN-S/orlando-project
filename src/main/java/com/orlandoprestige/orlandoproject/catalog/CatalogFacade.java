@@ -5,17 +5,24 @@ import com.orlandoprestige.orlandoproject.catalog.internal.service.ProductServic
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 import java.util.Optional;
 
 /**
  * Public facade for the Catalog module.
- * Other modules (Cart, Orders) must use this class to interact with product data.
+ * Other modules (Cart, Orders, Inventory) must use this class to interact with product data.
  */
 @Service
 @RequiredArgsConstructor
 public class CatalogFacade {
 
     private final ProductService productService;
+
+    public List<ProductInfoDto> findAll() {
+        return productService.findAll().stream()
+                .map(p -> new ProductInfoDto(p.getId(), p.getName(), p.getSku(), p.getPrice(), p.getStockQuantity()))
+                .toList();
+    }
 
     public Optional<ProductInfoDto> findById(Long productId) {
         return productService.findById(productId)
