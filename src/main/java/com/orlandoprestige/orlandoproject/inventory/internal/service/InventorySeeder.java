@@ -22,6 +22,7 @@ public class InventorySeeder {
     public void seedInventory() {
         if (inventoryService.hasInventoryItems()) {
             log.info("Inventory items already exist — skipping seed.");
+            inventoryService.backfillWarehouseStockFromAggregate();
             return;
         }
 
@@ -35,6 +36,7 @@ public class InventorySeeder {
             );
             log.info("Seeded inventory for product: {} (stock: {})", product.name(), product.stockQuantity());
         });
+        inventoryService.backfillWarehouseStockFromAggregate();
         log.info("Inventory seeding complete.");
     }
 }

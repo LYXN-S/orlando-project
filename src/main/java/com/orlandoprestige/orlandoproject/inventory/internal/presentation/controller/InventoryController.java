@@ -4,6 +4,8 @@ import com.orlandoprestige.orlandoproject.auth.AuthenticatedUser;
 import com.orlandoprestige.orlandoproject.inventory.internal.domain.InventoryItem;
 import com.orlandoprestige.orlandoproject.inventory.internal.domain.InventoryMovement;
 import com.orlandoprestige.orlandoproject.inventory.internal.domain.MovementType;
+import com.orlandoprestige.orlandoproject.inventory.internal.domain.WarehouseCode;
+import com.orlandoprestige.orlandoproject.inventory.internal.domain.WarehouseStock;
 import com.orlandoprestige.orlandoproject.inventory.internal.presentation.dto.*;
 import com.orlandoprestige.orlandoproject.inventory.internal.service.InventoryService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -61,20 +63,62 @@ public class InventoryController {
         return ResponseEntity.ok(toDto(updated));
     }
 
+        @GetMapping("/warehouses")
+        @PreAuthorize("isAuthenticated()")
+        @Operation(summary = "List fixed warehouse references")
+        public ResponseEntity<List<WarehouseDto>> getWarehouses() {
+                List<WarehouseDto> warehouses = inventoryService.getWarehouses().stream()
+                                .map(w -> new WarehouseDto(w.name(), w.displayName()))
+                                .toList();
+                return ResponseEntity.ok(warehouses);
+        }
+
+        @GetMapping("/warehouses/stocks")
+        @PreAuthorize("hasRole('SUPER_ADMIN') or @permissionChecker.has(authentication, 'MANAGE_INVENTORY')")
+        @Operation(summary = "List per-warehouse stock")
+        public ResponseEntity<List<WarehouseStockDto>> getWarehouseStocks(
+                        @RequestParam(required = false) Long productId,
+                        @RequestParam(required = false) String warehouseCode) {
+                WarehouseCode code = warehouseCode != null ? WarehouseCode.from(warehouseCode) : null;
+                List<WarehouseStockDto> stocks = inventoryService.getWarehouseStocks(productId, code)
+                                .stream()
+                                .map(this::toWarehouseStockDto)
+                                .toList();
+                return ResponseEntity.ok(stocks);
+        }
+
+        @PostMapping("/stock-in")
+        @PreAuthorize("hasRole('SUPER_ADMIN') or @permissionChecker.has(authentication, 'MANAGE_INVENTORY')")
+        @Operation(summary = "Add stock to a specific warehouse")
+        public ResponseEntity<InventoryItemDto> stockIn(
+                        @AuthenticationPrincipal AuthenticatedUser user,
+                        @Valid @RequestBody StockInRequestDto dto) {
+                InventoryItem updated = inventoryService.stockIn(
+                                dto.productId(),
+                                WarehouseCode.from(dto.warehouseCode()),
+                                dto.quantity(),
+                                dto.note(),
+                                user.userId()
+                );
+                return ResponseEntity.ok(toDto(updated));
+        }
+
     @GetMapping("/movements")
     @PreAuthorize("hasRole('SUPER_ADMIN') or @permissionChecker.has(authentication, 'MANAGE_INVENTORY')")
     @Operation(summary = "List inventory movements with optional filters")
     public ResponseEntity<List<InventoryMovementDto>> getMovements(
             @RequestParam(required = false) Long productId,
+                        @RequestParam(required = false) String warehouseCode,
             @RequestParam(required = false) String type,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
 
         MovementType movementType = type != null ? MovementType.valueOf(type) : null;
+                WarehouseCode movementWarehouse = warehouseCode != null ? WarehouseCode.from(warehouseCode) : null;
         LocalDateTime fromDt = from != null ? from.atStartOfDay() : null;
         LocalDateTime toDt = to != null ? to.atTime(LocalTime.MAX) : null;
 
-        List<InventoryMovementDto> movements = inventoryService.getMovements(productId, movementType, fromDt, toDt)
+                List<InventoryMovementDto> movements = inventoryService.getMovements(productId, movementWarehouse, movementType, fromDt, toDt)
                 .stream()
                 .map(this::toMovementDto)
                 .toList();
@@ -162,6 +206,7 @@ public class InventoryController {
                 m.getInventoryItemId(),
                 m.getProductId(),
                 productName,
+                                m.getWarehouseCode() != null ? m.getWarehouseCode().name() : null,
                 m.getMovementType().name(),
                 m.getQuantity(),
                 m.getReferenceType(),
@@ -171,4 +216,17 @@ public class InventoryController {
                 m.getCreatedAt()
         );
     }
+
+        private WarehouseStockDto toWarehouseStockDto(WarehouseStock stock) {
+                return new WarehouseStockDto(
+                                stock.getId(),
+                                stock.getProductId(),
+                                stock.getProductName(),
+                                stock.getSku(),
+                                stock.getWarehouseCode().name(),
+                                stock.getWarehouseCode().displayName(),
+                                stock.getQuantity(),
+                                stock.getLastUpdated()
+                );
+        }
 }

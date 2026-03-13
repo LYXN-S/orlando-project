@@ -41,18 +41,23 @@ public class ProductController {
     @GetMapping
     @Operation(summary = "Get all active products (public)")
     public ResponseEntity<List<ProductDto>> getAllProducts(
+            @AuthenticationPrincipal AuthenticatedUser user,
             @RequestParam(required = false) String category) {
         List<Product> products = category != null
                 ? productService.findByCategory(category)
                 : productService.findAll();
-        return ResponseEntity.ok(products.stream().map(this::toDto).toList());
+        boolean includeStock = canViewStock(user);
+        return ResponseEntity.ok(products.stream().map(p -> toDto(p, includeStock)).toList());
     }
 
     @GetMapping("/{id}")
     @Operation(summary = "Get product by ID (public)")
-    public ResponseEntity<ProductDto> getProductById(@PathVariable Long id) {
+    public ResponseEntity<ProductDto> getProductById(
+            @AuthenticationPrincipal AuthenticatedUser user,
+            @PathVariable Long id) {
+        boolean includeStock = canViewStock(user);
         return productService.findById(id)
-                .map(this::toDto)
+                .map(product -> toDto(product, includeStock))
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
@@ -159,6 +164,10 @@ public class ProductController {
     }
 
     private ProductDto toDto(Product product) {
+        return toDto(product, true);
+    }
+
+    private ProductDto toDto(Product product, boolean includeStock) {
         List<ImageDto> imageDtos;
         try {
             imageDtos = productImageService.getImagesByProductId(product.getId()).stream()
@@ -173,10 +182,14 @@ public class ProductController {
                 product.getDescription(),
                 product.getSku(),
                 product.getPrice(),
-                product.getStockQuantity(),
+                includeStock ? product.getStockQuantity() : null,
                 product.getCategory(),
                 imageDtos
         );
+    }
+
+    private boolean canViewStock(AuthenticatedUser user) {
+        return user != null && ("ROLE_SUPER_ADMIN".equals(user.role()) || "ROLE_STAFF".equals(user.role()));
     }
 
     private ImageDto toImageDto(Long productId, ProductImage image) {

@@ -9,7 +9,7 @@ public record ProductDto(
         String description,
         String sku,
         BigDecimal price,
-        int stockQuantity,
+        Integer stockQuantity,
         String category,
         List<ImageDto> images
 ) {

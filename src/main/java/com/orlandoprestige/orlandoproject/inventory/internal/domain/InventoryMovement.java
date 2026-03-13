@@ -25,6 +25,10 @@ public class InventoryMovement {
     private Long productId;
 
     @Enumerated(EnumType.STRING)
+    @Column(name = "warehouse_code")
+    private WarehouseCode warehouseCode;
+
+    @Enumerated(EnumType.STRING)
     @Column(name = "movement_type", nullable = false)
     private MovementType movementType;
 

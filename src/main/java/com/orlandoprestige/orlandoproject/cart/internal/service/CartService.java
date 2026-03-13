@@ -39,10 +39,6 @@ public class CartService {
         ProductInfoDto product = catalogFacade.findById(productId)
                 .orElseThrow(() -> new EntityNotFoundException("Product not found: " + productId));
 
-        if (product.stockQuantity() < quantity) {
-            throw new IllegalStateException("Insufficient stock for product: " + product.name());
-        }
-
         ShoppingCart cart = getOrCreateCart(customerId);
 
         // If item already exists, increment quantity
@@ -79,9 +75,7 @@ public class CartService {
         } else {
             ProductInfoDto product = catalogFacade.findById(productId)
                     .orElseThrow(() -> new EntityNotFoundException("Product not found: " + productId));
-            if (product.stockQuantity() < quantity) {
-                throw new IllegalStateException("Insufficient stock for product: " + product.name());
-            }
+            // Customer flow no longer hard-blocks by live stock; staff validates at PO review.
             item.setQuantity(quantity);
         }
 

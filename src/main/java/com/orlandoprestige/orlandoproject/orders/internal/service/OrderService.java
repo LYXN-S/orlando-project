@@ -31,6 +31,7 @@ public class OrderService {
     private final CartFacade cartFacade;
     private final CatalogFacade catalogFacade;
     private final BillingProfileService billingProfileService;
+    private final PurchaseOrderReviewService purchaseOrderReviewService;
     private final ApplicationEventPublisher eventPublisher;
 
     @Transactional
@@ -56,10 +57,6 @@ public class OrderService {
             ProductInfoDto product = catalogFacade.findById(submittedItem.productId())
                     .orElseThrow(() -> new EntityNotFoundException("Product not found: " + submittedItem.productId()));
 
-            if (product.stockQuantity() < submittedItem.quantity()) {
-                throw new IllegalStateException("Insufficient stock for product: " + product.name());
-            }
-
             OrderItem item = new OrderItem();
             item.setProductId(submittedItem.productId());
             item.setProductName(product.name());
@@ -71,6 +68,9 @@ public class OrderService {
 
         order.getItems().addAll(orderItems);
         Order saved = orderRepository.save(order);
+
+        // Every customer order creates a PO review artifact for staff scrutiny.
+        purchaseOrderReviewService.createForOrder(saved.getId());
 
         // Clear server-side cart if it exists
         try {
@@ -108,6 +108,10 @@ public class OrderService {
 
         if (order.getStatus() != OrderStatus.PENDING_EVALUATION) {
             throw new IllegalStateException("Order is not in PENDING_EVALUATION state.");
+        }
+
+        if (approved) {
+            purchaseOrderReviewService.autoAllocateOffice(orderId);
         }
 
         order.setStatus(approved ? OrderStatus.APPROVED : OrderStatus.REJECTED);

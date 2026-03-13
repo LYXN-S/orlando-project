@@ -2,18 +2,14 @@ package com.orlandoprestige.orlandoproject.inventory.internal.presentation.dto;
 
 import java.time.LocalDateTime;
 
-public record InventoryMovementDto(
+public record WarehouseStockDto(
         Long id,
-        Long inventoryItemId,
         Long productId,
         String productName,
+        String sku,
         String warehouseCode,
-        String movementType,
+        String warehouseName,
         int quantity,
-        String referenceType,
-        Long referenceId,
-        String note,
-        Long performedBy,
-        LocalDateTime createdAt
+        LocalDateTime lastUpdated
 ) {
 }

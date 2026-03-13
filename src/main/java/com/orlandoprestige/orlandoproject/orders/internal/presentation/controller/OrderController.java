@@ -1,8 +1,6 @@
 package com.orlandoprestige.orlandoproject.orders.internal.presentation.controller;
 
 import com.orlandoprestige.orlandoproject.auth.AuthenticatedUser;
-import com.orlandoprestige.orlandoproject.catalog.CatalogFacade;
-import com.orlandoprestige.orlandoproject.catalog.dto.ProductInfoDto;
 import com.orlandoprestige.orlandoproject.orders.internal.domain.Order;
 import com.orlandoprestige.orlandoproject.orders.internal.domain.OrderItem;
 import com.orlandoprestige.orlandoproject.orders.internal.presentation.dto.EvaluateOrderDto;
@@ -30,7 +28,6 @@ import java.util.List;
 public class OrderController {
 
     private final OrderService orderService;
-    private final CatalogFacade catalogFacade;
 
     @PostMapping
     @PreAuthorize("hasRole('ROLE_CUSTOMER')")
@@ -109,16 +106,14 @@ public class OrderController {
 
     private OrderItemDto toItemDto(OrderItem item) {
         BigDecimal subtotal = item.getUnitPrice().multiply(BigDecimal.valueOf(item.getQuantity()));
-        Integer availableStock = catalogFacade.findById(item.getProductId())
-                .map(ProductInfoDto::stockQuantity)
-                .orElse(null);
         return new OrderItemDto(
+            item.getId(),
                 item.getProductId(),
                 item.getProductName(),
                 item.getQuantity(),
                 item.getUnitPrice(),
                 subtotal,
-                availableStock
+                null
         );
     }
 }
