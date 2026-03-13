@@ -1,10 +1,12 @@
 package com.orlandoprestige.orlandoproject.catalog.internal.presentation.controller;
 
+import com.orlandoprestige.orlandoproject.auth.AuthenticatedUser;
 import com.orlandoprestige.orlandoproject.catalog.internal.domain.Product;
 import com.orlandoprestige.orlandoproject.catalog.internal.domain.ProductImage;
 import com.orlandoprestige.orlandoproject.catalog.internal.presentation.dto.*;
 import com.orlandoprestige.orlandoproject.catalog.internal.service.ProductImageService;
 import com.orlandoprestige.orlandoproject.catalog.internal.service.ProductService;
+import com.orlandoprestige.orlandoproject.inventory.InventoryFacade;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -16,6 +18,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -33,6 +36,7 @@ public class ProductController {
 
     private final ProductService productService;
     private final ProductImageService productImageService;
+    private final InventoryFacade inventoryFacade;
 
     @GetMapping
     @Operation(summary = "Get all active products (public)")
@@ -98,20 +102,20 @@ public class ProductController {
 
     @PatchMapping("/{id}/stock")
     @PreAuthorize("hasRole('SUPER_ADMIN') or @permissionChecker.has(authentication, 'MANAGE_INVENTORY')")
-    @Operation(summary = "Adjust product stock quantity (Staff with inventory permission)")
+    @Operation(summary = "Adjust product stock quantity via inventory module (Staff with inventory permission)")
     public ResponseEntity<ProductDto> adjustStock(
             @PathVariable Long id,
+            @AuthenticationPrincipal AuthenticatedUser user,
             @Valid @RequestBody StockAdjustmentDto dto) {
+        if (!productService.existsById(id)) {
+            return ResponseEntity.notFound().build();
+        }
+        // Delegate to inventory module — it handles movement logging and catalog sync
+        inventoryFacade.adjustStock(id, dto.adjustment(), "Stock adjustment via product endpoint", user.userId());
+        // Re-fetch product to return updated data
         return productService.findById(id)
-                .map(product -> {
-                    int newStock = product.getStockQuantity() + dto.adjustment();
-                    if (newStock < 0) {
-                        throw new IllegalArgumentException("Stock cannot be negative. Current: "
-                                + product.getStockQuantity() + ", adjustment: " + dto.adjustment());
-                    }
-                    product.setStockQuantity(newStock);
-                    return ResponseEntity.ok(toDto(productService.save(product)));
-                })
+                .map(this::toDto)
+                .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 
