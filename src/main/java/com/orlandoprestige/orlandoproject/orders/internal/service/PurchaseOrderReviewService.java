@@ -177,11 +177,14 @@ public class PurchaseOrderReviewService {
                 }
 
                 BigDecimal amount = item.getUnitPrice().multiply(BigDecimal.valueOf(allocation.getAllocatedQuantity()));
+                WarehouseCode allocationWarehouse = allocation.getWarehouseCode() != null
+                    ? allocation.getWarehouseCode()
+                    : WarehouseCode.OFFICE;
                 output.add(new WarehouseSalesDetailDto(
                         po.getId(),
                         order.getId(),
                         po.getReviewedAt(),
-                        allocation.getWarehouseCode().name(),
+                    allocationWarehouse.name(),
                         allocation.getProductId(),
                         item.getProductName(),
                         allocation.getAllocatedQuantity(),

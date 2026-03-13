@@ -7,6 +7,7 @@ public record InventoryItemDto(
         Long productId,
         String productName,
         String sku,
+        String category,
         int currentStock,
         int reorderLevel,
         String status,

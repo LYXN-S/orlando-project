@@ -33,4 +33,8 @@ public class InventoryFacade {
         inventoryService.getByProductId(productId).ifPresent(item ->
                 inventoryService.adjustStock(item.getId(), adjustment, note, staffId));
     }
+
+    public void createOrUpdate(Long productId, String productName, String sku, int stock) {
+        inventoryService.createOrUpdate(productId, productName, sku, stock);
+    }
 }

@@ -1,6 +1,7 @@
 package com.orlandoprestige.orlandoproject.catalog.internal.service;
 
 import com.orlandoprestige.orlandoproject.catalog.internal.domain.Product;
+import com.orlandoprestige.orlandoproject.catalog.internal.domain.ProductAvailabilityStatus;
 import com.orlandoprestige.orlandoproject.catalog.internal.repository.ProductRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +25,20 @@ public class ProductService {
     @Transactional(readOnly = true)
     public List<Product> findByCategory(String category) {
         return productRepository.findByCategory(category);
+    }
+
+    @Transactional(readOnly = true)
+    public List<Product> findAllAvailable() {
+        return productRepository.findAll().stream()
+                .filter(p -> p.getAvailabilityStatus() == null || p.getAvailabilityStatus() == ProductAvailabilityStatus.AVAILABLE)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<Product> findAvailableByCategory(String category) {
+        return productRepository.findByCategory(category).stream()
+                .filter(p -> p.getAvailabilityStatus() == null || p.getAvailabilityStatus() == ProductAvailabilityStatus.AVAILABLE)
+                .toList();
     }
 
     @Transactional(readOnly = true)
@@ -71,6 +86,25 @@ public class ProductService {
                 .orElseThrow(() -> new EntityNotFoundException("Product not found: " + productId));
         product.setStockQuantity(product.getStockQuantity() + quantity);
         productRepository.save(product);
+    }
+
+    @Transactional
+    public Product updateAvailability(Long productId, ProductAvailabilityStatus status, Long staffId) {
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new EntityNotFoundException("Product not found: " + productId));
+        product.setAvailabilityStatus(status);
+        product.setAvailabilityUpdatedBy(staffId);
+        return productRepository.save(product);
+    }
+
+    @Transactional
+    public Product updateOperationalFields(Long productId, String name, String sku, String category) {
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new EntityNotFoundException("Product not found: " + productId));
+        product.setName(name);
+        product.setSku(sku);
+        product.setCategory(category);
+        return productRepository.save(product);
     }
 }
 

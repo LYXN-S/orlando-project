@@ -1,5 +1,6 @@
 package com.orlandoprestige.orlandoproject.inventory.internal.service;
 
+import com.orlandoprestige.orlandoproject.catalog.CatalogFacade;
 import com.orlandoprestige.orlandoproject.inventory.internal.domain.InventoryItem;
 import com.orlandoprestige.orlandoproject.inventory.internal.domain.InventoryMovement;
 import com.orlandoprestige.orlandoproject.inventory.internal.domain.MovementType;
@@ -30,6 +31,7 @@ public class InventoryService {
     private final InventoryItemRepository itemRepository;
     private final InventoryMovementRepository movementRepository;
     private final WarehouseStockRepository warehouseStockRepository;
+    private final CatalogFacade catalogFacade;
     private final ApplicationEventPublisher eventPublisher;
 
     @Transactional(readOnly = true)
@@ -204,6 +206,20 @@ public class InventoryService {
             return warehouseStockRepository.findAllByWarehouseCode(warehouseCode);
         }
         return warehouseStockRepository.findAll();
+    }
+
+    @Transactional
+    public InventoryItem updateProductMetadata(Long inventoryItemId, String productName, String sku, String category, int reorderLevel) {
+        InventoryItem item = itemRepository.findById(inventoryItemId)
+                .orElseThrow(() -> new EntityNotFoundException("Inventory item not found: " + inventoryItemId));
+
+        item.setProductName(productName);
+        item.setSku(sku);
+        item.setReorderLevel(reorderLevel);
+        InventoryItem saved = itemRepository.save(item);
+
+        catalogFacade.updateOperationalFields(item.getProductId(), productName, sku, category);
+        return saved;
     }
 
     private InventoryItem applyWarehouseAdjustment(

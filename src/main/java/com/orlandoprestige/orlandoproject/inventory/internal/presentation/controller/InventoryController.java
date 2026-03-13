@@ -1,6 +1,8 @@
 package com.orlandoprestige.orlandoproject.inventory.internal.presentation.controller;
 
 import com.orlandoprestige.orlandoproject.auth.AuthenticatedUser;
+import com.orlandoprestige.orlandoproject.catalog.CatalogFacade;
+import com.orlandoprestige.orlandoproject.catalog.dto.ProductInfoDto;
 import com.orlandoprestige.orlandoproject.inventory.internal.domain.InventoryItem;
 import com.orlandoprestige.orlandoproject.inventory.internal.domain.InventoryMovement;
 import com.orlandoprestige.orlandoproject.inventory.internal.domain.MovementType;
@@ -31,6 +33,7 @@ import java.util.stream.Collectors;
 public class InventoryController {
 
     private final InventoryService inventoryService;
+        private final CatalogFacade catalogFacade;
 
     @GetMapping
     @PreAuthorize("hasRole('SUPER_ADMIN') or @permissionChecker.has(authentication, 'MANAGE_INVENTORY')")
@@ -62,6 +65,22 @@ public class InventoryController {
         InventoryItem updated = inventoryService.adjustStock(id, dto.adjustment(), dto.note(), user.userId());
         return ResponseEntity.ok(toDto(updated));
     }
+
+        @PatchMapping("/{id}/product")
+        @PreAuthorize("hasRole('SUPER_ADMIN') or @permissionChecker.has(authentication, 'MANAGE_INVENTORY')")
+        @Operation(summary = "Update product operational metadata from inventory")
+        public ResponseEntity<InventoryItemDto> updateProductMetadata(
+                        @PathVariable Long id,
+                        @Valid @RequestBody InventoryProductUpdateRequestDto dto) {
+                InventoryItem updated = inventoryService.updateProductMetadata(
+                                id,
+                                dto.productName(),
+                                dto.sku(),
+                                dto.category(),
+                                dto.reorderLevel()
+                );
+                return ResponseEntity.ok(toDto(updated));
+        }
 
         @GetMapping("/warehouses")
         @PreAuthorize("isAuthenticated()")
@@ -189,6 +208,7 @@ public class InventoryController {
                 item.getProductId(),
                 item.getProductName(),
                 item.getSku(),
+                catalogFacade.findById(item.getProductId()).map(ProductInfoDto::category).orElse(""),
                 item.getCurrentStock(),
                 item.getReorderLevel(),
                 status,

@@ -1,6 +1,7 @@
 package com.orlandoprestige.orlandoproject.catalog.internal.presentation.controller;
 
 import com.orlandoprestige.orlandoproject.auth.AuthenticatedUser;
+import com.orlandoprestige.orlandoproject.catalog.internal.domain.ProductAvailabilityStatus;
 import com.orlandoprestige.orlandoproject.catalog.internal.domain.Product;
 import com.orlandoprestige.orlandoproject.catalog.internal.domain.ProductImage;
 import com.orlandoprestige.orlandoproject.catalog.internal.presentation.dto.*;
@@ -43,9 +44,13 @@ public class ProductController {
     public ResponseEntity<List<ProductDto>> getAllProducts(
             @AuthenticationPrincipal AuthenticatedUser user,
             @RequestParam(required = false) String category) {
-        List<Product> products = category != null
-                ? productService.findByCategory(category)
-                : productService.findAll();
+        boolean includeUnavailable = canViewStock(user);
+        List<Product> products;
+        if (includeUnavailable) {
+            products = category != null ? productService.findByCategory(category) : productService.findAll();
+        } else {
+            products = category != null ? productService.findAvailableByCategory(category) : productService.findAllAvailable();
+        }
         boolean includeStock = canViewStock(user);
         return ResponseEntity.ok(products.stream().map(p -> toDto(p, includeStock)).toList());
     }
@@ -57,6 +62,7 @@ public class ProductController {
             @PathVariable Long id) {
         boolean includeStock = canViewStock(user);
         return productService.findById(id)
+            .filter(product -> canViewStock(user) || product.getAvailabilityStatus() == ProductAvailabilityStatus.AVAILABLE)
                 .map(product -> toDto(product, includeStock))
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
@@ -74,9 +80,15 @@ public class ProductController {
         product.setDescription(dto.description());
         product.setSku(dto.sku());
         product.setPrice(dto.price());
-        product.setStockQuantity(dto.stockQuantity());
+        product.setStockQuantity(0);
         product.setCategory(dto.category());
-        return ResponseEntity.status(HttpStatus.CREATED).body(toDto(productService.save(product)));
+        product.setAvailabilityStatus(dto.availabilityStatus() != null
+            ? ProductAvailabilityStatus.valueOf(dto.availabilityStatus())
+            : ProductAvailabilityStatus.AVAILABLE);
+        product.setAvailabilityUpdatedBy(null);
+        Product saved = productService.save(product);
+        inventoryFacade.createOrUpdate(saved.getId(), saved.getName(), saved.getSku(), dto.stockQuantity());
+        return ResponseEntity.status(HttpStatus.CREATED).body(toDto(saved));
     }
 
     @PutMapping("/{id}")
@@ -90,11 +102,27 @@ public class ProductController {
                     product.setName(dto.name());
                     product.setDescription(dto.description());
                     product.setPrice(dto.price());
-                    product.setStockQuantity(dto.stockQuantity());
                     product.setCategory(dto.category());
-                    return ResponseEntity.ok(toDto(productService.save(product)));
+                    if (dto.availabilityStatus() != null) {
+                        product.setAvailabilityStatus(ProductAvailabilityStatus.valueOf(dto.availabilityStatus()));
+                    }
+                    Product updated = productService.save(product);
+                    inventoryFacade.createOrUpdate(updated.getId(), updated.getName(), updated.getSku(), updated.getStockQuantity());
+                    return ResponseEntity.ok(toDto(updated));
                 })
                 .orElse(ResponseEntity.notFound().build());
+    }
+
+    @PatchMapping("/{id}/availability")
+    @PreAuthorize("hasRole('SUPER_ADMIN') or @permissionChecker.has(authentication, 'MANAGE_PRODUCTS')")
+    @Operation(summary = "Toggle product availability")
+    public ResponseEntity<ProductDto> updateAvailability(
+            @PathVariable Long id,
+            @AuthenticationPrincipal AuthenticatedUser user,
+            @Valid @RequestBody ProductAvailabilityUpdateDto dto) {
+        ProductAvailabilityStatus status = ProductAvailabilityStatus.valueOf(dto.availabilityStatus());
+        Product updated = productService.updateAvailability(id, status, user.userId());
+        return ResponseEntity.ok(toDto(updated));
     }
 
     @DeleteMapping("/{id}")
@@ -184,6 +212,8 @@ public class ProductController {
                 product.getPrice(),
                 includeStock ? product.getStockQuantity() : null,
                 product.getCategory(),
+                product.getAvailabilityStatus() != null ? product.getAvailabilityStatus().name() : ProductAvailabilityStatus.AVAILABLE.name(),
+                product.getAvailabilityUpdatedBy(),
                 imageDtos
         );
     }

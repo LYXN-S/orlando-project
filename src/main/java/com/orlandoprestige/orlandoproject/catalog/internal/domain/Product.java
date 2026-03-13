@@ -5,8 +5,10 @@ import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.SQLRestriction;
+import org.hibernate.annotations.UpdateTimestamp;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -41,6 +43,17 @@ public class Product extends SoftDeletableEntity {
 
     @Column(name = "category")
     private String category;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "availability_status")
+    private ProductAvailabilityStatus availabilityStatus = ProductAvailabilityStatus.AVAILABLE;
+
+    @Column(name = "availability_updated_by")
+    private Long availabilityUpdatedBy;
+
+    @UpdateTimestamp
+    @Column(name = "availability_updated_at")
+    private LocalDateTime availabilityUpdatedAt;
 
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<ProductImage> images = new ArrayList<>();

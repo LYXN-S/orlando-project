@@ -36,7 +36,10 @@ public class PurchaseOrderReviewController {
     @PreAuthorize("hasRole('SUPER_ADMIN') or @permissionChecker.has(authentication, 'MANAGE_ORDERS')")
     @Operation(summary = "List PO reviews")
     public ResponseEntity<List<POReviewDto>> list(@RequestParam(required = false) String status) {
-        PurchaseOrderStatus poStatus = status != null ? PurchaseOrderStatus.valueOf(status) : null;
+        PurchaseOrderStatus poStatus = null;
+        if (status != null && !status.isBlank()) {
+            poStatus = PurchaseOrderStatus.valueOf(status);
+        }
         List<POReviewDto> output = poService.getAll(poStatus).stream().map(this::toDto).toList();
         return ResponseEntity.ok(output);
     }
@@ -124,14 +127,16 @@ public class PurchaseOrderReviewController {
                         line.getId(),
                         line.getOrderItemId(),
                         line.getProductId(),
-                        line.getWarehouseCode().name(),
+                line.getWarehouseCode() != null ? line.getWarehouseCode().name() : WarehouseCode.OFFICE.name(),
                         line.getAllocatedQuantity()
                 )).toList();
+
+        PurchaseOrderStatus status = po.getStatus() != null ? po.getStatus() : PurchaseOrderStatus.PENDING_REVIEW;
 
         return new POReviewDto(
                 po.getId(),
                 po.getOrderId(),
-                po.getStatus().name(),
+            status.name(),
                 order.getCustomerId(),
                 order.getCreatedAt(),
                 po.getReviewedBy(),

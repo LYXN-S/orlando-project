@@ -11,7 +11,8 @@ public record ProductInfoDto(
         String name,
         String sku,
         BigDecimal price,
-        int stockQuantity
+        int stockQuantity,
+        String category
 ) {
 }
 
