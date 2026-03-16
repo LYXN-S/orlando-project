@@ -12,6 +12,9 @@ import com.orlandoprestige.orlandoproject.orders.internal.repository.PurchaseOrd
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -32,6 +35,12 @@ public class PurchaseOrderReviewService {
     private final InventoryService inventoryService;
 
     @Transactional
+        @Caching(evict = {
+            @CacheEvict(value = "purchaseOrderLists", allEntries = true),
+            @CacheEvict(value = "purchaseOrderById", allEntries = true),
+            @CacheEvict(value = "warehouseSalesSummary", allEntries = true),
+            @CacheEvict(value = "warehouseSalesDetails", allEntries = true)
+        })
     public PurchaseOrderReview createForOrder(Long orderId) {
         return poRepository.findByOrderId(orderId).orElseGet(() -> {
             PurchaseOrderReview po = new PurchaseOrderReview();
@@ -42,6 +51,7 @@ public class PurchaseOrderReviewService {
     }
 
     @Transactional(readOnly = true)
+    @Cacheable("purchaseOrderLists")
     public List<PurchaseOrderReview> getAll(PurchaseOrderStatus status) {
         if (status == null) {
             return poRepository.findAllByOrderByCreatedAtDesc();
@@ -50,12 +60,19 @@ public class PurchaseOrderReviewService {
     }
 
     @Transactional(readOnly = true)
+        @Cacheable(value = "purchaseOrderById", key = "#poId")
     public PurchaseOrderReview getById(Long poId) {
         return poRepository.findById(poId)
                 .orElseThrow(() -> new EntityNotFoundException("PO review not found: " + poId));
     }
 
     @Transactional
+        @Caching(evict = {
+            @CacheEvict(value = "purchaseOrderLists", allEntries = true),
+            @CacheEvict(value = "purchaseOrderById", allEntries = true),
+            @CacheEvict(value = "warehouseSalesSummary", allEntries = true),
+            @CacheEvict(value = "warehouseSalesDetails", allEntries = true)
+        })
     public PurchaseOrderReview upsertAllocations(Long poId, List<POAllocationLine> inputAllocations) {
         PurchaseOrderReview po = getById(poId);
         if (po.getStatus() != PurchaseOrderStatus.PENDING_REVIEW) {
@@ -75,6 +92,12 @@ public class PurchaseOrderReviewService {
     }
 
     @Transactional
+        @Caching(evict = {
+            @CacheEvict(value = "purchaseOrderLists", allEntries = true),
+            @CacheEvict(value = "purchaseOrderById", allEntries = true),
+            @CacheEvict(value = "warehouseSalesSummary", allEntries = true),
+            @CacheEvict(value = "warehouseSalesDetails", allEntries = true)
+        })
     public PurchaseOrderReview decide(Long poId, Long staffId, boolean approved, String note) {
         PurchaseOrderReview po = getById(poId);
         Order order = orderRepository.findById(po.getOrderId())
@@ -120,6 +143,7 @@ public class PurchaseOrderReviewService {
     }
 
     @Transactional(readOnly = true)
+    @Cacheable("warehouseSalesSummary")
     public List<WarehouseSalesSummaryDto> getWarehouseSalesSummary(LocalDate from, LocalDate to, WarehouseCode warehouseCode) {
         List<WarehouseSalesDetailDto> details = getWarehouseSalesDetails(from, to, warehouseCode, null);
 
@@ -140,6 +164,7 @@ public class PurchaseOrderReviewService {
     }
 
     @Transactional(readOnly = true)
+    @Cacheable("warehouseSalesDetails")
     public List<WarehouseSalesDetailDto> getWarehouseSalesDetails(LocalDate from, LocalDate to, WarehouseCode warehouseCode, Long productId) {
         LocalDate fromDate = from != null ? from : LocalDate.now().minusDays(30);
         LocalDate toDate = to != null ? to : LocalDate.now();
@@ -199,6 +224,12 @@ public class PurchaseOrderReviewService {
     }
 
     @Transactional
+        @Caching(evict = {
+            @CacheEvict(value = "purchaseOrderLists", allEntries = true),
+            @CacheEvict(value = "purchaseOrderById", allEntries = true),
+            @CacheEvict(value = "warehouseSalesSummary", allEntries = true),
+            @CacheEvict(value = "warehouseSalesDetails", allEntries = true)
+        })
     public void autoAllocateOffice(Long orderId) {
         PurchaseOrderReview po = poRepository.findByOrderId(orderId)
                 .orElseThrow(() -> new EntityNotFoundException("PO review not found for order: " + orderId));

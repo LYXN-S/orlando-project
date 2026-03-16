@@ -11,6 +11,7 @@ public record ProductDto(
         BigDecimal price,
         Integer stockQuantity,
         String category,
+        boolean bestSeller,
         String availabilityStatus,
         Long availabilityUpdatedBy,
         List<ImageDto> images

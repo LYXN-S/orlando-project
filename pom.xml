@@ -149,10 +149,10 @@
 			<version>3.0.5</version>
 		</dependency>
 
-		<!-- Flyway for database migrations -->
+		<!-- Flyway for database migrations (spring-boot-starter-flyway includes auto-configuration) -->
 		<dependency>
-			<groupId>org.flywaydb</groupId>
-			<artifactId>flyway-core</artifactId>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-flyway</artifactId>
 		</dependency>
 		<dependency>
 			<groupId>org.flywaydb</groupId>

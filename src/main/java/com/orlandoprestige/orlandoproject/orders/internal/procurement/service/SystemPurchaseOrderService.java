@@ -102,6 +102,18 @@ public class SystemPurchaseOrderService {
     }
 
     @Transactional
+    public void delete(Long id) {
+        SystemPurchaseOrder po = poRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("System PO not found: " + id));
+
+        if (po.getStatus() != SystemPoStatus.DRAFT) {
+            throw new IllegalStateException("Only draft POs can be deleted.");
+        }
+
+        poRepository.delete(po);
+    }
+
+    @Transactional
     public SystemPoResponseDto uploadAndExtract(Long userId, Long existingPoId, MultipartFile file) throws IOException {
         validateUpload(file);
         return processUploadAndExtract(

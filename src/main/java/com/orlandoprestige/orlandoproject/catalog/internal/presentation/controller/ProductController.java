@@ -20,6 +20,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.data.domain.Page;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -41,18 +42,19 @@ public class ProductController {
 
     @GetMapping
     @Operation(summary = "Get all active products (public)")
-    public ResponseEntity<List<ProductDto>> getAllProducts(
+    public ResponseEntity<Page<ProductDto>> getAllProducts(
             @AuthenticationPrincipal AuthenticatedUser user,
-            @RequestParam(required = false) String category) {
+            @RequestParam(required = false) String category,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) Boolean bestSeller,
+            @RequestParam(required = false) Boolean excludeBestSeller,
+            @RequestParam(required = false, defaultValue = "0") int page,
+            @RequestParam(required = false, defaultValue = "20") int size,
+            @RequestParam(required = false, defaultValue = "featured") String sortBy) {
         boolean includeUnavailable = canViewStock(user);
-        List<Product> products;
-        if (includeUnavailable) {
-            products = category != null ? productService.findByCategory(category) : productService.findAll();
-        } else {
-            products = category != null ? productService.findAvailableByCategory(category) : productService.findAllAvailable();
-        }
         boolean includeStock = canViewStock(user);
-        return ResponseEntity.ok(products.stream().map(p -> toDto(p, includeStock)).toList());
+        Page<Product> products = productService.findCatalogPage(category, search, bestSeller, excludeBestSeller, includeUnavailable, page, size, sortBy);
+        return ResponseEntity.ok(products.map(p -> toDto(p, includeStock)));
     }
 
     @GetMapping("/{id}")
@@ -82,6 +84,7 @@ public class ProductController {
         product.setPrice(dto.price());
         product.setStockQuantity(0);
         product.setCategory(dto.category());
+        product.setBestSeller(Boolean.TRUE.equals(dto.bestSeller()));
         product.setAvailabilityStatus(dto.availabilityStatus() != null
             ? ProductAvailabilityStatus.valueOf(dto.availabilityStatus())
             : ProductAvailabilityStatus.AVAILABLE);
@@ -103,6 +106,7 @@ public class ProductController {
                     product.setDescription(dto.description());
                     product.setPrice(dto.price());
                     product.setCategory(dto.category());
+                    product.setBestSeller(Boolean.TRUE.equals(dto.bestSeller()));
                     if (dto.availabilityStatus() != null) {
                         product.setAvailabilityStatus(ProductAvailabilityStatus.valueOf(dto.availabilityStatus()));
                     }
@@ -122,6 +126,17 @@ public class ProductController {
             @Valid @RequestBody ProductAvailabilityUpdateDto dto) {
         ProductAvailabilityStatus status = ProductAvailabilityStatus.valueOf(dto.availabilityStatus());
         Product updated = productService.updateAvailability(id, status, user.userId());
+        return ResponseEntity.ok(toDto(updated));
+    }
+
+    @PatchMapping("/{id}/best-seller")
+    @PreAuthorize("hasRole('SUPER_ADMIN') or @permissionChecker.has(authentication, 'MANAGE_PRODUCTS')")
+    @Operation(summary = "Toggle best seller status")
+    public ResponseEntity<ProductDto> updateBestSeller(
+            @PathVariable Long id,
+            @RequestBody java.util.Map<String, Boolean> body) {
+        boolean bestSeller = Boolean.TRUE.equals(body.get("bestSeller"));
+        Product updated = productService.updateBestSeller(id, bestSeller);
         return ResponseEntity.ok(toDto(updated));
     }
 
@@ -212,6 +227,7 @@ public class ProductController {
                 product.getPrice(),
                 includeStock ? product.getStockQuantity() : null,
                 product.getCategory(),
+            product.isBestSeller(),
                 product.getAvailabilityStatus() != null ? product.getAvailabilityStatus().name() : ProductAvailabilityStatus.AVAILABLE.name(),
                 product.getAvailabilityUpdatedBy(),
                 imageDtos

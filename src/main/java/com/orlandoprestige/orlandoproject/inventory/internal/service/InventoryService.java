@@ -13,6 +13,9 @@ import com.orlandoprestige.orlandoproject.inventory.internal.repository.Warehous
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -35,21 +38,32 @@ public class InventoryService {
     private final ApplicationEventPublisher eventPublisher;
 
     @Transactional(readOnly = true)
+    @Cacheable("inventoryItems")
     public List<InventoryItem> getAll() {
         return itemRepository.findAll();
     }
 
     @Transactional(readOnly = true)
+    @Cacheable(value = "inventoryItemById", key = "#id")
     public Optional<InventoryItem> getById(Long id) {
         return itemRepository.findById(id);
     }
 
     @Transactional(readOnly = true)
+    @Cacheable(value = "inventoryItemByProductId", key = "#productId")
     public Optional<InventoryItem> getByProductId(Long productId) {
         return itemRepository.findByProductId(productId);
     }
 
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = "inventoryItems", allEntries = true),
+            @CacheEvict(value = "inventoryItemById", allEntries = true),
+            @CacheEvict(value = "inventoryItemByProductId", allEntries = true),
+            @CacheEvict(value = "inventoryMovements", allEntries = true),
+            @CacheEvict(value = "inventoryDailySummary", allEntries = true),
+            @CacheEvict(value = "warehouseStocks", allEntries = true)
+    })
     public InventoryItem adjustStock(Long inventoryItemId, int adjustment, String note, Long staffId) {
         InventoryItem item = itemRepository.findById(inventoryItemId)
                 .orElseThrow(() -> new EntityNotFoundException("Inventory item not found: " + inventoryItemId));
@@ -58,6 +72,14 @@ public class InventoryService {
     }
 
     @Transactional
+        @Caching(evict = {
+            @CacheEvict(value = "inventoryItems", allEntries = true),
+            @CacheEvict(value = "inventoryItemById", allEntries = true),
+            @CacheEvict(value = "inventoryItemByProductId", allEntries = true),
+            @CacheEvict(value = "inventoryMovements", allEntries = true),
+            @CacheEvict(value = "inventoryDailySummary", allEntries = true),
+            @CacheEvict(value = "warehouseStocks", allEntries = true)
+        })
     public InventoryItem stockIn(Long productId, WarehouseCode warehouseCode, int quantity, String note, Long staffId) {
         if (quantity <= 0) {
             throw new IllegalArgumentException("Stock in quantity must be greater than zero.");
@@ -70,6 +92,14 @@ public class InventoryService {
     }
 
     @Transactional
+        @Caching(evict = {
+            @CacheEvict(value = "inventoryItems", allEntries = true),
+            @CacheEvict(value = "inventoryItemById", allEntries = true),
+            @CacheEvict(value = "inventoryItemByProductId", allEntries = true),
+            @CacheEvict(value = "inventoryMovements", allEntries = true),
+            @CacheEvict(value = "inventoryDailySummary", allEntries = true),
+            @CacheEvict(value = "warehouseStocks", allEntries = true)
+        })
     public void deductForOrder(Long productId, int quantity, Long orderId) {
         InventoryItem item = itemRepository.findByProductId(productId)
                 .orElseThrow(() -> new EntityNotFoundException("Inventory item not found for product: " + productId));
@@ -86,6 +116,14 @@ public class InventoryService {
     }
 
     @Transactional
+        @Caching(evict = {
+            @CacheEvict(value = "inventoryItems", allEntries = true),
+            @CacheEvict(value = "inventoryItemById", allEntries = true),
+            @CacheEvict(value = "inventoryItemByProductId", allEntries = true),
+            @CacheEvict(value = "inventoryMovements", allEntries = true),
+            @CacheEvict(value = "inventoryDailySummary", allEntries = true),
+            @CacheEvict(value = "warehouseStocks", allEntries = true)
+        })
     public void reverseForOrder(Long productId, int quantity, Long orderId) {
         InventoryItem item = itemRepository.findByProductId(productId)
                 .orElseThrow(() -> new EntityNotFoundException("Inventory item not found for product: " + productId));
@@ -103,6 +141,14 @@ public class InventoryService {
     }
 
         @Transactional
+        @Caching(evict = {
+            @CacheEvict(value = "inventoryItems", allEntries = true),
+            @CacheEvict(value = "inventoryItemById", allEntries = true),
+            @CacheEvict(value = "inventoryItemByProductId", allEntries = true),
+            @CacheEvict(value = "inventoryMovements", allEntries = true),
+            @CacheEvict(value = "inventoryDailySummary", allEntries = true),
+            @CacheEvict(value = "warehouseStocks", allEntries = true)
+        })
         public void deductForWarehouseOrder(Long productId, WarehouseCode warehouseCode, int quantity, Long orderId, Long staffId) {
         InventoryItem item = itemRepository.findByProductId(productId)
             .orElseThrow(() -> new EntityNotFoundException("Inventory item not found for product: " + productId));
@@ -120,6 +166,15 @@ public class InventoryService {
         }
 
     @Transactional
+            @Caching(evict = {
+                @CacheEvict(value = "inventoryItems", allEntries = true),
+                @CacheEvict(value = "inventoryItemById", allEntries = true),
+                @CacheEvict(value = "inventoryItemByProductId", allEntries = true),
+                @CacheEvict(value = "inventoryMovements", allEntries = true),
+                @CacheEvict(value = "inventoryDailySummary", allEntries = true),
+                @CacheEvict(value = "warehouseStocks", allEntries = true),
+                @CacheEvict(value = "warehouseDefinitions", allEntries = true)
+            })
     public InventoryItem createOrUpdate(Long productId, String productName, String sku, int stock) {
         Optional<InventoryItem> existing = itemRepository.findByProductId(productId);
         if (existing.isPresent()) {
@@ -154,11 +209,13 @@ public class InventoryService {
     }
 
     @Transactional(readOnly = true)
+    @Cacheable("inventoryMovements")
     public List<InventoryMovement> getMovements(Long productId, WarehouseCode warehouseCode, MovementType type, LocalDateTime from, LocalDateTime to) {
         return movementRepository.findFiltered(productId, warehouseCode, type, from, to);
     }
 
     @Transactional(readOnly = true)
+    @Cacheable(value = "inventoryDailySummary", key = "#date")
     public List<InventoryMovement> getDailyMovements(LocalDate date) {
         LocalDateTime dayStart = date.atStartOfDay();
         LocalDateTime dayEnd = date.atTime(LocalTime.MAX);
@@ -170,6 +227,12 @@ public class InventoryService {
     }
 
     @Transactional
+        @Caching(evict = {
+            @CacheEvict(value = "inventoryItems", allEntries = true),
+            @CacheEvict(value = "inventoryItemById", allEntries = true),
+            @CacheEvict(value = "inventoryItemByProductId", allEntries = true),
+            @CacheEvict(value = "warehouseStocks", allEntries = true)
+        })
     public void backfillWarehouseStockFromAggregate() {
         for (InventoryItem item : itemRepository.findAll()) {
             List<WarehouseStock> existing = warehouseStockRepository.findAllByProductId(item.getProductId());
@@ -188,11 +251,13 @@ public class InventoryService {
     }
 
     @Transactional(readOnly = true)
+    @Cacheable("warehouseDefinitions")
     public List<WarehouseCode> getWarehouses() {
         return List.of(WarehouseCode.values());
     }
 
     @Transactional(readOnly = true)
+    @Cacheable("warehouseStocks")
     public List<WarehouseStock> getWarehouseStocks(Long productId, WarehouseCode warehouseCode) {
         if (productId != null && warehouseCode != null) {
             return warehouseStockRepository.findByProductIdAndWarehouseCode(productId, warehouseCode)
@@ -209,6 +274,14 @@ public class InventoryService {
     }
 
     @Transactional
+        @Caching(evict = {
+            @CacheEvict(value = "inventoryItems", allEntries = true),
+            @CacheEvict(value = "inventoryItemById", allEntries = true),
+            @CacheEvict(value = "inventoryItemByProductId", allEntries = true),
+            @CacheEvict(value = "warehouseStocks", allEntries = true),
+            @CacheEvict(value = "inventoryMovements", allEntries = true),
+            @CacheEvict(value = "inventoryDailySummary", allEntries = true)
+        })
     public InventoryItem updateProductMetadata(Long inventoryItemId, String productName, String sku, String category, int reorderLevel) {
         InventoryItem item = itemRepository.findById(inventoryItemId)
                 .orElseThrow(() -> new EntityNotFoundException("Inventory item not found: " + inventoryItemId));

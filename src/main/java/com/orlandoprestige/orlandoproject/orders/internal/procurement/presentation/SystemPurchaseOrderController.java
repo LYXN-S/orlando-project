@@ -72,6 +72,14 @@ public class SystemPurchaseOrderController {
         return ResponseEntity.ok(service.confirm(id, user.userId(), note));
     }
 
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('SUPER_ADMIN') or @permissionChecker.has(authentication, 'MANAGE_ORDERS')")
+    @Operation(summary = "Delete draft procurement PO (soft delete)")
+    public ResponseEntity<Void> delete(@PathVariable Long id) {
+        service.delete(id);
+        return ResponseEntity.noContent().build();
+    }
+
     @PostMapping(value = "/upload-extract", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasRole('SUPER_ADMIN') or @permissionChecker.has(authentication, 'MANAGE_ORDERS')")
     @Operation(summary = "Upload PO document and auto-populate draft form")

@@ -1,8 +1,11 @@
 package com.orlandoprestige.orlandoproject.orders.internal.procurement.domain;
 
+import com.orlandoprestige.orlandoproject.shared.domain.entities.SoftDeletableEntity;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.SQLDelete;
+import org.hibernate.annotations.SQLRestriction;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.math.BigDecimal;
@@ -13,11 +16,13 @@ import java.util.List;
 
 @Entity
 @Table(name = "system_purchase_orders")
+@SQLDelete(sql = "UPDATE system_purchase_orders SET deleted = true WHERE id = ?")
+@SQLRestriction("deleted = false")
 @Getter
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
-public class SystemPurchaseOrder {
+public class SystemPurchaseOrder extends SoftDeletableEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

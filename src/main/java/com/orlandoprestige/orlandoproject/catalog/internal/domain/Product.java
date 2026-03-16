@@ -44,6 +44,9 @@ public class Product extends SoftDeletableEntity {
     @Column(name = "category")
     private String category;
 
+    @Column(name = "best_seller", nullable = false)
+    private boolean bestSeller = false;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "availability_status")
     private ProductAvailabilityStatus availabilityStatus = ProductAvailabilityStatus.AVAILABLE;
