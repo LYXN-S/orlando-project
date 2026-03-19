@@ -11,6 +11,8 @@ public record ParsedPurchaseOrderDto(
         LocalDate poDate,
         LocalDate deliveryDate,
         String currency,
+    String businessAddress,
+    String deliveryAddress,
         BigDecimal subtotal,
         BigDecimal tax,
         BigDecimal total,
