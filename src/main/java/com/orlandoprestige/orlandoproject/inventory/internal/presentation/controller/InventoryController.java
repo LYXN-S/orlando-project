@@ -132,8 +132,14 @@ public class InventoryController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
 
-        MovementType movementType = type != null ? MovementType.valueOf(type) : null;
-                WarehouseCode movementWarehouse = warehouseCode != null ? WarehouseCode.from(warehouseCode) : null;
+                MovementType movementType;
+                WarehouseCode movementWarehouse;
+                try {
+                        movementType = type != null ? MovementType.valueOf(type) : null;
+                        movementWarehouse = warehouseCode != null ? WarehouseCode.from(warehouseCode) : null;
+                } catch (IllegalArgumentException ex) {
+                        return ResponseEntity.badRequest().build();
+                }
         LocalDateTime fromDt = from != null ? from.atStartOfDay() : null;
         LocalDateTime toDt = to != null ? to.atTime(LocalTime.MAX) : null;
 
