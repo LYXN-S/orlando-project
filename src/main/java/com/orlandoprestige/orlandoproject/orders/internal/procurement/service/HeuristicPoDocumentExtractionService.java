@@ -28,6 +28,8 @@ public class HeuristicPoDocumentExtractionService implements PoDocumentExtractio
     private static final Pattern PO_NUMBER_PATTERN = Pattern.compile("(?im)(request\\s+for\\s+quotation|purchase\\s+order)\\s*#?\\s*([A-Z0-9-]{4,})|^(po\\s*(no|number)?|rfq\\s*(no|number)?)\\s*[:#\\-]\\s*(.+)$");
     private static final Pattern PO_DATE_PATTERN = Pattern.compile("(?im)^(po\\s*date|date|order\\s*deadline)\\s*[:\\-]\\s*(.+)$");
     private static final Pattern DELIVERY_DATE_PATTERN = Pattern.compile("(?im)^(delivery\\s*date|target\\s*date|needed\\s*by|due\\s*date|date\\s*req\\.?)\\s*[:\\-]\\s*(.+)$");
+    private static final Pattern BUSINESS_ADDRESS_PATTERN = Pattern.compile("(?im)^(business\\s*address|billing\\s*address|address)\\s*[:\\-]\\s*(.+)$");
+    private static final Pattern DELIVERY_ADDRESS_PATTERN = Pattern.compile("(?im)^(delivery\\s*address|deliver\\s*to|ship\\s*to|shipping\\s*address)\\s*[:\\-]\\s*(.+)$");
     private static final Pattern CURRENCY_PATTERN = Pattern.compile("(?i)\\b(PHP|USD|EUR|GBP|JPY|AUD|CAD)\\b");
     private static final Pattern TOTAL_PATTERN = Pattern.compile("(?im)(grand\\s*total|net\\s*amount|total)\\s*[:\\-]?\\s*(?:PHP|₱)?\\s*([0-9,]+(?:\\.[0-9]{1,2})?)");
     private static final Pattern SUBTOTAL_PATTERN = Pattern.compile("(?im)(subtotal|sub\\s*total)\\s*[:\\-]?\\s*(?:PHP|₱)?\\s*([0-9,]+(?:\\.[0-9]{1,2})?)");
@@ -52,6 +54,8 @@ public class HeuristicPoDocumentExtractionService implements PoDocumentExtractio
         LocalDate poDate = findDate(findGroup(PO_DATE_PATTERN, text, 2).orElse(null)).orElse(LocalDate.now());
         LocalDate deliveryDate = findDate(findGroup(DELIVERY_DATE_PATTERN, text, 2).orElse(null)).orElse(null);
         String currency = findGroup(CURRENCY_PATTERN, text, 1).orElse("PHP");
+        String businessAddress = findGroup(BUSINESS_ADDRESS_PATTERN, text, 2).orElse(null);
+        String deliveryAddress = findGroup(DELIVERY_ADDRESS_PATTERN, text, 2).orElse(null);
 
         BigDecimal subtotal = findAmount(SUBTOTAL_PATTERN, text, 2).orElse(BigDecimal.ZERO);
         BigDecimal tax = findAmount(TAX_PATTERN, text, 2).orElse(BigDecimal.ZERO);
@@ -84,6 +88,8 @@ public class HeuristicPoDocumentExtractionService implements PoDocumentExtractio
                 poDate,
                 deliveryDate,
                 currency,
+            businessAddress,
+            deliveryAddress,
                 subtotal,
                 tax,
                 total,
