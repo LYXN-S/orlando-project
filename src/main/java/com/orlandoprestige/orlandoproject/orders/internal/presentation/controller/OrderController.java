@@ -8,11 +8,14 @@ import com.orlandoprestige.orlandoproject.orders.internal.presentation.dto.Order
 import com.orlandoprestige.orlandoproject.orders.internal.presentation.dto.OrderItemDto;
 import com.orlandoprestige.orlandoproject.orders.internal.presentation.dto.SubmitOrderDto;
 import com.orlandoprestige.orlandoproject.orders.internal.service.OrderService;
+import com.orlandoprestige.orlandoproject.orders.internal.service.PurchaseOrderReviewService;
 import jakarta.validation.Valid;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -28,6 +31,7 @@ import java.util.List;
 public class OrderController {
 
     private final OrderService orderService;
+    private final PurchaseOrderReviewService purchaseOrderReviewService;
 
     @PostMapping
     @PreAuthorize("hasRole('ROLE_CUSTOMER')")
@@ -76,6 +80,17 @@ public class OrderController {
             @RequestBody EvaluateOrderDto dto) {
         Order order = orderService.evaluateOrder(id, user.userId(), dto.approved(), dto.note());
         return ResponseEntity.ok(toDto(order));
+    }
+
+    @GetMapping("/{id}/sales-invoice/pdf")
+    @PreAuthorize("hasRole('SUPER_ADMIN') or @permissionChecker.has(authentication, 'MANAGE_ORDERS') or @orderAccessGuard.isOwner(#id, authentication)")
+    @Operation(summary = "Open sales invoice PDF for approved order")
+    public ResponseEntity<byte[]> getOrderSalesInvoicePdf(@PathVariable Long id) {
+        byte[] pdf = purchaseOrderReviewService.generateSalesInvoicePdfForOrder(id);
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_PDF)
+                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"sales-invoice-order-" + id + ".pdf\"")
+                .body(pdf);
     }
 
     private OrderDto toDto(Order order) {
