@@ -33,6 +33,7 @@ public class PurchaseOrderReviewService {
     private final POAllocationLineRepository allocationRepository;
     private final OrderRepository orderRepository;
     private final InventoryService inventoryService;
+    private final SalesInvoicePdfService salesInvoicePdfService;
 
     @Transactional
         @Caching(evict = {
@@ -248,6 +249,71 @@ public class PurchaseOrderReviewService {
 
         upsertAllocations(po.getId(), officeAllocations);
     }
+
+        @Transactional(readOnly = true)
+        public byte[] generateSalesInvoicePdf(Long poId) {
+        PurchaseOrderReview po = getById(poId);
+        if (po.getStatus() != PurchaseOrderStatus.APPROVED) {
+            throw new IllegalStateException("Sales invoice is only available for approved client orders.");
+        }
+
+        Order order = orderRepository.findById(po.getOrderId())
+            .orElseThrow(() -> new EntityNotFoundException("Order not found for PO: " + po.getOrderId()));
+
+        return salesInvoicePdfService.render(buildPayload(po, order));
+        }
+
+        @Transactional(readOnly = true)
+        public byte[] generateSalesInvoicePdfForOrder(Long orderId) {
+        PurchaseOrderReview po = poRepository.findByOrderId(orderId)
+            .orElseThrow(() -> new EntityNotFoundException("PO review not found for order: " + orderId));
+        return generateSalesInvoicePdf(po.getId());
+        }
+
+        private SalesInvoicePdfService.SalesInvoicePdfPayload buildPayload(PurchaseOrderReview po, Order order) {
+        List<SalesInvoicePdfService.InvoiceLine> lines = order.getItems().stream()
+            .map(item -> {
+                BigDecimal amount = item.getUnitPrice().multiply(BigDecimal.valueOf(item.getQuantity()));
+                return new SalesInvoicePdfService.InvoiceLine(
+                    "Item " + item.getId(),
+                    item.getProductName(),
+                    item.getQuantity(),
+                    item.getUnitPrice(),
+                    amount
+                );
+            })
+            .toList();
+
+        BigDecimal totalSales = lines.stream()
+            .map(SalesInvoicePdfService.InvoiceLine::amount)
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal vat = totalSales.multiply(BigDecimal.valueOf(12))
+            .divide(BigDecimal.valueOf(112), 2, java.math.RoundingMode.HALF_UP);
+        BigDecimal amountNetOfVat = totalSales.subtract(vat);
+
+        return new SalesInvoicePdfService.SalesInvoicePdfPayload(
+            po.getReviewedAt() != null ? po.getReviewedAt().toLocalDate() : LocalDate.now(),
+            order.getBillingName(),
+            order.getBillingTin(),
+            order.getBillingAddress(),
+            order.getBillingTerms(),
+            "Order #" + order.getId(),
+            lines,
+            po.getReviewedBy() != null ? "Staff #" + po.getReviewedBy() : "Staff",
+            po.getReviewedBy() != null ? "Staff #" + po.getReviewedBy() : "Staff",
+            totalSales,
+            vat,
+            amountNetOfVat,
+            BigDecimal.ZERO,
+            amountNetOfVat,
+            vat,
+            vat,
+            vat,
+            BigDecimal.ZERO,
+            BigDecimal.ZERO,
+            totalSales
+        );
+        }
 
     private void validateAllocations(Order order, List<POAllocationLine> allocations) {
         if (allocations == null || allocations.isEmpty()) {
