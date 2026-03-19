@@ -15,6 +15,10 @@ public record SystemPoResponseDto(
         LocalDate poDate,
         LocalDate deliveryDate,
         String currency,
+        String tin,
+        String businessAddress,
+        String deliveryAddress,
+        Boolean sameAsBusinessAddress,
         BigDecimal subtotal,
         BigDecimal tax,
         BigDecimal total,
@@ -25,6 +29,7 @@ public record SystemPoResponseDto(
         LocalDateTime createdAt,
         List<SystemPoItemDto> items,
         List<SystemPoAttachmentDto> attachments,
-        SystemPoExtractionRunDto latestExtraction
+        SystemPoExtractionRunDto latestExtraction,
+        SystemSalesInvoiceDto salesInvoice
 ) {
 }
