@@ -51,6 +51,18 @@ public class SystemPurchaseOrder extends SoftDeletableEntity {
     @Column(name = "currency")
     private String currency;
 
+    @Column(name = "tin")
+    private String tin;
+
+    @Column(name = "business_address", columnDefinition = "TEXT")
+    private String businessAddress;
+
+    @Column(name = "delivery_address", columnDefinition = "TEXT")
+    private String deliveryAddress;
+
+    @Column(name = "same_as_business_address")
+    private Boolean sameAsBusinessAddress;
+
     @Column(name = "subtotal", precision = 14, scale = 2)
     private BigDecimal subtotal;
 
