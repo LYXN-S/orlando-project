@@ -13,6 +13,8 @@ import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -80,6 +82,17 @@ public class PurchaseOrderReviewController {
             @Valid @RequestBody POReviewDecisionDto decision) {
         PurchaseOrderReview updated = poService.decide(poId, user.userId(), decision.approved(), decision.note());
         return ResponseEntity.ok(toDto(updated));
+    }
+
+    @GetMapping("/{poId}/sales-invoice/pdf")
+    @PreAuthorize("hasRole('SUPER_ADMIN') or @permissionChecker.has(authentication, 'MANAGE_ORDERS')")
+    @Operation(summary = "Open sales invoice PDF for approved PO review")
+    public ResponseEntity<byte[]> getSalesInvoicePdf(@PathVariable Long poId) {
+        byte[] pdf = poService.generateSalesInvoicePdf(poId);
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_PDF)
+                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"sales-invoice-client-po-" + poId + ".pdf\"")
+                .body(pdf);
     }
 
     @GetMapping("/reports/sales/warehouses/summary")
