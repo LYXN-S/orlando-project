@@ -55,6 +55,8 @@ public class GeminiPoDocumentExtractionService implements PoDocumentExtractionSe
               "poDate": "YYYY-MM-DD or null",
               "deliveryDate": "YYYY-MM-DD or null",
               "currency": "string",
+                            "businessAddress": "string or null",
+                            "deliveryAddress": "string or null",
               "subtotal": number,
               "tax": number,
               "total": number,
@@ -81,6 +83,9 @@ public class GeminiPoDocumentExtractionService implements PoDocumentExtractionSe
                         - deliveryDate may appear as Delivery Date, Target Date, Date Req., or Needed By.
                         - total may appear as Grand Total, Net Amount, or Total.
                         - subtotal may appear as Subtotal or be derived from line items if missing.
+                        - businessAddress should be extracted from billing/company address blocks.
+                        - deliveryAddress should be extracted only if explicitly present (e.g., Deliver To/Ship To).
+                        - If delivery address is not present in the document, set deliveryAddress to null.
                         - unitPrice may appear as Unit Price or Net Price.
                         - lineTotal may appear as Amount or Subtotal in line item rows.
                         - Extract all visible line items from tabular rows when possible.
@@ -149,6 +154,8 @@ public class GeminiPoDocumentExtractionService implements PoDocumentExtractionSe
                     parseDate(root.path("poDate").asText(null)),
                     parseDate(root.path("deliveryDate").asText(null)),
                     root.path("currency").asText("PHP"),
+                    root.path("businessAddress").isNull() ? null : root.path("businessAddress").asText(null),
+                    root.path("deliveryAddress").isNull() ? null : root.path("deliveryAddress").asText(null),
                     toBigDecimal(root.path("subtotal")),
                     toBigDecimal(root.path("tax")),
                     toBigDecimal(root.path("total")),
