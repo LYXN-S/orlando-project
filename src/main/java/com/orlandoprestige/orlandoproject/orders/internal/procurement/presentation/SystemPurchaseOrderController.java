@@ -72,6 +72,29 @@ public class SystemPurchaseOrderController {
         return ResponseEntity.ok(service.confirm(id, user.userId(), note));
     }
 
+    @PutMapping("/{id}/sales-invoice")
+    @PreAuthorize("hasRole('SUPER_ADMIN') or @permissionChecker.has(authentication, 'MANAGE_ORDERS')")
+    @Operation(summary = "Update sales invoice generated from confirmed PO")
+    public ResponseEntity<SystemPoResponseDto> updateSalesInvoice(
+            @PathVariable Long id,
+            @AuthenticationPrincipal AuthenticatedUser user,
+            @Valid @RequestBody SystemSalesInvoiceUpdateRequestDto dto) {
+        return ResponseEntity.ok(service.updateSalesInvoice(id, user.userId(), dto));
+    }
+
+    @GetMapping("/{id}/sales-invoice/pdf")
+    @PreAuthorize("hasRole('SUPER_ADMIN') or @permissionChecker.has(authentication, 'MANAGE_ORDERS')")
+    @Operation(summary = "Open sales invoice PDF for confirmed procurement PO")
+    public ResponseEntity<byte[]> getSalesInvoicePdf(
+            @PathVariable Long id,
+            @AuthenticationPrincipal AuthenticatedUser user) {
+        byte[] pdf = service.generateSalesInvoicePdf(id, user.userId());
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_PDF)
+                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"sales-invoice-po-" + id + ".pdf\"")
+                .body(pdf);
+    }
+
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('SUPER_ADMIN') or @permissionChecker.has(authentication, 'MANAGE_ORDERS')")
     @Operation(summary = "Delete draft procurement PO (soft delete)")
